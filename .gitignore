@@ -1,0 +1,8 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+dl/
+charts/
+qings.zip
+qings.arcpkg
