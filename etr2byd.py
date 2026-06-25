@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 etr2byd.py - 将目录树中所有名为 4.aff 的文件重命名为 3.aff
 用法: python etr2byd.py [目录] [--dry-run] [--force] [--verbose]
@@ -37,9 +36,9 @@ def rename_files(root_dir, dry_run=False, force=False, verbose=False):
 
     for src in matches:
         dst = src.with_name("3.aff")  # 替换文件名
-        if verbose:
-            print(f"  源文件: {src}")
-            print(f"  目标: {dst}")
+        # if verbose:
+        #     print(f"  源文件: {src}")
+        #     print(f"  目标: {dst}")
 
         # 如果目标已存在且不强制覆盖，则跳过
         if dst.exists() and not force:
@@ -56,18 +55,18 @@ def rename_files(root_dir, dry_run=False, force=False, verbose=False):
                 # 使用 os.replace 原子操作，跨文件系统安全
                 os.replace(str(src), str(dst))
                 renamed_count += 1
-                if verbose:
-                    print(f"  ✅ 重命名成功")
+                # if verbose:
+                #     print(f"  ✅ 重命名成功")
             except Exception as e:
                 print(f"  ❌ 重命名失败: {e}", file=sys.stderr)
 
     # 总结
     if dry_run:
         print(
-            f"\n模拟运行完成。将会重命名 {renamed_count} 个文件，跳过 {skipped_count} 个。"
+            f"模拟运行完成。将会重命名 {renamed_count} 个文件，跳过 {skipped_count} 个。"
         )
     else:
-        print(f"\n实际重命名 {renamed_count} 个文件，跳过 {skipped_count} 个。")
+        print(f"实际重命名 {renamed_count} 个文件，跳过 {skipped_count} 个。\r\n")
 
 
 def main():

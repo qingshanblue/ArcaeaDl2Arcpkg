@@ -51,7 +51,7 @@ def generate_pack_files(
                         "type": "level",
                     }
                 )
-                print(f"  找到关卡: {level_name} -> {identifier}")
+                # print(f"  找到关卡: {level_name} -> {identifier}")
             else:
                 print(f"  跳过文件夹 '{item.name}': 缺少 project.arcproj")
 
@@ -79,10 +79,7 @@ def generate_pack_files(
                 sort_keys=False,
                 default_flow_style=False,
             )
-        print(f"\n[成功] 已生成包配置文件: {pack_yml_path}")
-        print(
-            f"  -> 请确保封面图片 '{image_name}' 已放在 '{pack_folder_path}/' 目录下。"
-        )
+        print(f"[成功] 已生成包配置文件: {pack_yml_path}")
     except Exception as e:
         print(f"错误: 写入 pack.yml 失败 - {e}")
         return False
@@ -109,21 +106,10 @@ def generate_pack_files(
                 sort_keys=False,
                 default_flow_style=False,
             )
-        print(f"[成功] 已生成索引文件: {index_yml_path}")
+        print(f"[成功] 已生成索引文件: {index_yml_path}\r\n")
     except Exception as e:
         print(f"错误: 写入 index.yml 失败 - {e}")
         return False
-
-    print("\n--- 下一步操作指南 ---")
-    print(
-        f"1. 请将你的包封面图片命名为 '{image_name}'，并放入 '{pack_folder_path}/' 文件夹。"
-    )
-    print(f"2. 进入 '{charts_dir}' 目录。")
-    print(
-        f"3. 选中所有文件和文件夹（包括各个关卡文件夹、'{pack_name}'文件夹和'index.yml'）。"
-    )
-    print(f"4. 将其压缩为 .zip 格式。")
-    print(f"5. 将后缀名修改为 .arcpkg 即可完成打包！")
     return True
 
 

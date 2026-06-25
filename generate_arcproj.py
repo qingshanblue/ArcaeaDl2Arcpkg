@@ -52,11 +52,18 @@ def generate_arcproj_files(input_dir="charts"):
             pass
         return "160"  # 如果读取失败，返回默认值 160
 
+    # ---------- 新增：初始化计数器 ----------
+    total_folders = 0  # 遍历的文件夹总数（包括跳过的）
+    generated_count = 0  # 成功生成 .arcproj 的文件夹数量
+    skipped_count = 0  # 因没有谱面文件而跳过的文件夹数量
+
     # 遍历每个谱面文件夹
     for folder_name in os.listdir(input_dir):
         folder_path = os.path.join(input_dir, folder_name)
         if not os.path.isdir(folder_path):
             continue
+
+        total_folders += 1  # 每遇到一个文件夹就计数
 
         # 找出文件夹中所有的数字命名的 .aff 文件 (如 0.aff, 1.aff)
         chart_indices = []
@@ -67,6 +74,7 @@ def generate_arcproj_files(input_dir="charts"):
 
         if not chart_indices:
             # 如果没有谱面文件，跳过该文件夹
+            skipped_count += 1  # 新增：跳过计数
             continue
 
         chart_indices.sort()
@@ -76,7 +84,7 @@ def generate_arcproj_files(input_dir="charts"):
         arcproj_content = f"lastOpenedChartPath: {first_chart}\n"
         arcproj_content += "charts:\n"
 
-        # 记录当前关卡的主 BPM 用于最后在终端打印
+        # 记录当前关卡的主 BPM 用于最后在终端打印（可保留也可移除，这里保留但不用）
         main_bpm = "160"
 
         for idx in chart_indices:
@@ -119,9 +127,14 @@ def generate_arcproj_files(input_dir="charts"):
         with open(arcproj_path, "w", encoding="utf-8") as f:
             f.write(arcproj_content)
 
-        print(
-            f"已生成: {input_dir}/{folder_name}/project.arcproj (等效BPM: {main_bpm})"
-        )
+        generated_count += 1  # 新增：成功生成计数
+
+    # ---------- 新增：输出统计信息 ----------
+    print(f"处理完成！共扫描 {total_folders} 个文件夹。")
+    print(f"成功生成 {generated_count} 个 project.arcproj 文件。")
+    if skipped_count > 0:
+        print(f"跳过 {skipped_count} 个文件夹（无 .aff 谱面文件）。")
+    print("")
 
 
 if __name__ == "__main__":

@@ -93,11 +93,11 @@ def organize_arcaea_files():
         src_path = os.path.join(dl_dir, f)
         dest_path = os.path.join(dest_dir, dest_name)
 
-        print(f"复制: {f} -> charts/{group_name}/{dest_name}")
+        # print(f"复制: {f} -> charts/{group_name}/{dest_name}")
         # 使用 copy2 会保留文件的原始修改时间等元数据
         shutil.copy2(src_path, dest_path)
 
-    print("全部复制并整理完成！")
+    print("全部复制并整理完成!\r\n")
 
 
 if __name__ == "__main__":
