@@ -7,10 +7,10 @@
 - `pixi.toml` 未定义 task，仅声明依赖。
 
 ## 目录布局
-- `utils/`：所有脚本（`arcaea_charts_sort.py`、`generate_arcproj.py`、`generate_yml.py`、`etr2byd.py`）及 BPM 覆盖表引用。
+- `utils/`：所有脚本（`arcaea_charts_sort.py`、`generate_arcproj.py`、`generate_yml.py`、`merge_songs.py`、`etr2byd.py`）及 BPM 覆盖表引用。
 - `run.sh`：项目根目录的流水线入口脚本（原 `utils/convert.sh` 移动并重命名）。
-- `in/`：输入区。`in/dl.zip`（下载的谱面压缩包，用户放置）、`in/pack.png`（封面 314x756）、`in/bpmSpecialCasesList.yaml`（手工维护的 BPM 覆盖表）。后两者在 `.gitignore` 中加例外强制提交。
-- `tmp/`：中间产物。`tmp/dl/`（解压结果）、`tmp/charts/`（整理后的谱面）。
+- `in/`：输入区。`in/dl.zip`（下载的付费谱面压缩包，用户放置）、`in/songs.zip`（**必需**，解包官方 APK 得到的 `songs/`）、`in/pack.png`（封面 314x756）、`in/bpmSpecialCasesList.yaml`（手工维护的 BPM 覆盖表）。`pack.png` 与 `bpmSpecialCasesList.yaml` 在 `.gitignore` 中加例外强制提交。
+- `tmp/`：中间产物。`tmp/dl/`（解压 `dl.zip`）、`tmp/songs/`（解压 `songs.zip`）、`tmp/charts/`（整理并合并后的谱面）。
 - `out/`：最终产物 `out/qings.zip` 与 `out/qings.arcpkg`。
 - `in/`、`tmp/`、`out/` 均被 `.gitignore` 忽略（`in/` 下 `pack.png` 与 `bpmSpecialCasesList.yaml` 除外）。
 
@@ -18,11 +18,13 @@
 - 一键执行：`bash run.sh`（从仓库根目录运行，CWD 决定相对路径；亲自按顺序跑下面各脚本，对产物做存在性判断，可重复运行幂等）。
 - 步骤顺序（不能乱）：
   1. `pv in/dl.zip | bsdtar -xf - -C tmp`（得 `tmp/dl/`，用 pv 进度条代替逐文件清单刷屏）；若 `in/dl.zip` 缺失会交互询问/报错退出
-  2. `utils/arcaea_charts_sort.py --dl-dir tmp/dl --charts-dir tmp/charts`：按歌曲名分组，重命名整理到 `tmp/charts/<song>/`
-  3. `utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml`：为每个歌曲文件夹生成 `project.arcproj`
-  4. `utils/generate_yml.py -i tmp/charts`：生成 `tmp/charts/qings/pack.yml` 与 `tmp/charts/index.yml`
-  5. 复制 `in/pack.png` 到 `tmp/charts/qings/`
-  6-7. 压缩 `tmp/charts/` 为 `out/qings.zip` 并重命名为 `out/qings.arcpkg`
+  2. `pv in/songs.zip | bsdtar -xf - -C tmp`（得 `tmp/songs/`，**必需输入**，缺失则 `run.sh` 直接报错退出）
+  3. `utils/arcaea_charts_sort.py --dl-dir tmp/dl --charts-dir tmp/charts`：按歌曲名分组，重命名整理到 `tmp/charts/<song>/`
+  4. `utils/merge_songs.py --songs-dir tmp/songs --charts-dir tmp/charts`：把 `songs/` 合并进 `charts/`——`dl_` 开头的文件夹（如 `dl_name`）去前缀后补到 `charts/name/`；其余（免费歌曲）整文件夹拷贝；合并后每个 `charts/` 文件夹都含曲绘 `1080_base.jpg`
+  5. `utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist`：为每个歌曲文件夹生成 `project.arcproj`
+  6. `utils/generate_yml.py -i tmp/charts`：生成 `tmp/charts/qings/pack.yml` 与 `tmp/charts/index.yml`
+  7. 复制 `in/pack.png` 到 `tmp/charts/qings/`
+  8-9. 压缩 `tmp/charts/` 为 `out/qings.zip` 并重命名为 `out/qings.arcpkg`
 
 ## 输入/输出约定
 - 提交进仓库的只有：`utils/` 下脚本、`run.sh`、`in/pack.png`、`in/bpmSpecialCasesList.yaml`；生成物 `in/dl.zip`、`tmp/`、`out/` 均忽略。
@@ -30,7 +32,11 @@
 - `generate_yml.py` 默认 pack 名/发布者均为 `qings`（`-n`/`-p` 可调），identifier 为 `publisher.<去空格去下划线后的歌名>`；会跳过 `tmp/charts/qings` 包文件夹，且要求每首歌文件夹里有 `project.arcproj` 才会纳入。
 
 ## 易踩的坑
-- `generate_arcproj.py` 的 BPM 从 `.aff` 首行 `timing(0,bpm,beat)` 读取，换算为等效 4/4 BPM = `bpm * (4/beat)`；读取失败默认填 `160`。难度名（Past ?/Present ?/…）和颜色含 `?` 占位符，需后续手工修正。
-- `bpmSpecialCasesList.yaml`（手动维护的覆盖表，键为歌曲文件夹名、值为 BPM）**会被 `generate_arcproj.py` 引用**：命中时整首歌所有难度直接套用该 BPM，跳过 `.aff` 解析；未命中才按原方式生成。键名必须与 `tmp/charts/` 下的歌曲文件夹名**完全一致**，否则静默不生效。
-- `etr2byd.py`（把 `4.aff` 重命名为 `3.aff`，ETR→BYD）在 `convert.sh` 中已被注释禁用；它支持 `--dry-run`/`--force`/`--verbose`，需要时手动运行。
+- `generate_arcproj.py` 的 BPM 来源已有优先级，**谱面解析方式已删除**：① 手动覆盖表 `in/bpmSpecialCasesList.yaml`（最高优先级，键为歌曲文件夹名、值为 BPM）；② 官方 `tmp/songs/songlist` 的 `bpm_base`。两者都查不到该歌曲时**直接报错并终止程序**（不再有默认 160）。`bpmText` 取 songlist 原始 `bpm` 字符串（如 `"75 - 210"` 保留区间），手动覆盖时则与 `baseBpm` 同值。
+- 难度 `difficulty` 的定数来自 songlist 中 `difficulties[].rating`（按 `ratingClass` 对应难度序号 0..4），拼成如 `Past 9.6`；songlist 无该难度则保留 `?` 占位符。颜色仍含 `?`，需后续手工修正（如 `#3A6B78FF`）。
+- `bpmSpecialCasesList.yaml`（手动维护的覆盖表，键为歌曲文件夹名、值为 BPM）**会被 `generate_arcproj.py` 引用**：命中时整首歌所有难度直接套用该 BPM，跳过 songlist 解析；未命中才按原方式生成。键名必须与 `tmp/charts/` 下的歌曲文件夹名**完全一致**，否则静默不生效。
+- `merge_songs.py` 依赖 `songs/` 内文件夹名：`dl_` 开头的去前缀补到对应 `charts/name/`，其余整文件夹拷贝；它只处理目录，无后缀的 `songlist` 等文件会被跳过；名为 `tutorial` 的文件夹（新手教程）整目录跳过，不进入 `charts/`。
+- `etr2byd.py`（把 `4.aff` 重命名为 `3.aff`，ETR→BYD）在 `run.sh` 中已被注释禁用；它支持 `--dry-run`/`--force`/`--verbose`，需要时手动运行。
+- `generate_arcproj.py` 会对含视频的歌曲做处理：若文件夹内有 `.mp4`（后缀大小写不敏感），重命名为 `base.mp4` 并在每个难度的 `project.arcproj` 中追加 `videoPath: base.mp4`；无视频则不加该字段。幂等：已是 `base.mp4` 或已存在 `base.mp4` 时不会覆盖。
+- 每个含曲绘的歌曲文件夹在生成 `project.arcproj` 时都会写入 `jacketPath: 1080_base.jpg`（由 `merge_songs.py` 保证该文件存在）。
 - 封面 `pack.png` 尺寸为 314x756，复制步骤会跳过已存在的情况。

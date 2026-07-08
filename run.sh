@@ -59,14 +59,33 @@ else
     fi
 fi
 
+echo "0b. 解压 in/songs.zip (必需)"
+if [ -f "./in/songs.zip" ]; then
+    if [ -d "./tmp/songs" ]; then
+        if ask "检测到 tmp/songs/ 已存在，是否覆盖解压？"; then
+            step "解压 in/songs.zip (覆盖)" bash -c 'pv ./in/songs.zip | bsdtar -xf - -C tmp'
+        else
+            warn "跳过解压，使用现有 tmp/songs/"
+        fi
+    else
+        step "解压 in/songs.zip" bash -c 'pv ./in/songs.zip | bsdtar -xf - -C tmp'
+    fi
+else
+    err "未找到 in/songs.zip（必需输入），无法继续"
+    exit 1
+fi
+
 echo "1. 整理 tmp/dl/ 中，按不同歌曲分为不同文件夹"
 step "整理 tmp/dl/ 为 tmp/charts/" pixi run python utils/arcaea_charts_sort.py --dl-dir tmp/dl --charts-dir tmp/charts
+
+echo "1b. 合并 tmp/songs/ 中的免费歌曲与 dl_ 额外信息到 tmp/charts/"
+step "合并 songs 到 charts" pixi run python utils/merge_songs.py --songs-dir tmp/songs --charts-dir tmp/charts
 
 # echo "2. 将etr转换为byd，ARCcreate不支持读取ETR"
 # pixi run python utils/etr2byd.py tmp/charts
 
 echo "3. 生成 arcproj，才可被 ARCcreate 读取"
-step "生成 project.arcproj" pixi run python utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml
+step "生成 project.arcproj" pixi run python utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist
 
 echo "4. 生成 yml，组织所有歌曲为曲包方便使用"
 step "生成 pack.yml 与 index.yml" pixi run python utils/generate_yml.py -i tmp/charts
