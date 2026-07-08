@@ -5,7 +5,7 @@ import yaml
 
 
 def generate_pack_files(
-    charts_dir="charts", pack_name="qings", publisher="qings", image_name="pack.png"
+    charts_dir="tmp/charts", pack_name="qings", publisher="qings", image_name="pack.png"
 ):
     """
     扫描 charts 目录下的关卡文件夹，生成 pack.yml 和 index.yml。
@@ -120,7 +120,7 @@ def main():
     parser.add_argument(
         "-i",
         "--input",
-        default="charts",
+        default="tmp/charts",
         help="包含关卡子文件夹的输入目录 (默认: charts)",
     )
     parser.add_argument(

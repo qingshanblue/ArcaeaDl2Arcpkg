@@ -2,8 +2,11 @@
 .pixi/*
 !.pixi/config.toml
 
-dl/
-charts/
-dl.zip
-qings.zip
-qings.arcpkg
+# 输入目录（保留手工维护的资产）
+in/*
+!in/pack.png
+!in/bpmSpecialCasesList.yaml
+
+# 中间产物与最终产物
+tmp/
+out/

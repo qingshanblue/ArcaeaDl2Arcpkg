@@ -1,11 +1,27 @@
 import os
 import re
+import yaml
+import argparse
 
 
-def generate_arcproj_files(input_dir="charts"):
+def load_bpm_special_cases(yaml_path="in/bpmSpecialCasesList.yaml"):
+    """读取手动维护的 BPM 覆盖表，键为歌曲文件夹名，值为 BPM（数值）。"""
+    if not os.path.exists(yaml_path):
+        return {}
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return {str(k).strip(): float(v) for k, v in data.items()}
+    except Exception:
+        return {}
+
+
+def generate_arcproj_files(input_dir="tmp/charts", bpm_yaml="in/bpmSpecialCasesList.yaml"):
     if not os.path.exists(input_dir):
         print(f"错误: 文件夹 '{input_dir}' 不存在！请先运行之前的整理脚本。")
         return
+
+    bpm_special_cases = load_bpm_special_cases(bpm_yaml)
 
     # 定义各难度的名称和颜色 (包含了 Beyond 和 Eternal 以防万一)
     difficulties = {
@@ -79,36 +95,48 @@ def generate_arcproj_files(input_dir="charts"):
 
         chart_indices.sort()
 
+        # BPM 取值策略：命中覆盖表则整首歌套用同一值，否则按 .aff 解析
+        if folder_name in bpm_special_cases:
+            override_bpm = bpm_special_cases[folder_name]
+            bpm_str = (
+                str(int(override_bpm))
+                if override_bpm == int(override_bpm)
+                else f"{override_bpm:.2f}"
+            )
+
+            def bpm_getter(idx, aff_path):
+                return bpm_str
+
+        else:
+
+            def bpm_getter(idx, aff_path):
+                return get_bpm_from_aff(aff_path)
+
         # 开始构建 .arcproj 文件内容
         first_chart = f"{chart_indices[0]}.aff"
         arcproj_content = f"lastOpenedChartPath: {first_chart}\n"
         arcproj_content += "charts:\n"
 
-        # 记录当前关卡的主 BPM 用于最后在终端打印（可保留也可移除，这里保留但不用）
-        main_bpm = "160"
-
         for idx in chart_indices:
             chart_filename = f"{idx}.aff"
             aff_path = os.path.join(folder_path, chart_filename)
 
-            # 1. 获取等效四分音符 BPM
-            bpm = get_bpm_from_aff(aff_path)
-            if idx == chart_indices[0]:
-                main_bpm = bpm
+            # 获取等效四分音符 BPM
+            bpm = bpm_getter(idx, aff_path)
 
-            # 2. 判断音频文件：优先使用对应难度的 X.ogg，没有则回退到 base.ogg
+            # 判断音频文件：优先使用对应难度的 X.ogg，没有则回退到 base.ogg
             audio_filename = f"{idx}.ogg"
             if not os.path.exists(os.path.join(folder_path, audio_filename)):
                 audio_filename = "base.ogg"
 
-            # 3. 获取难度信息
+            # 获取难度信息
             if idx in difficulties:
                 diff_name, diff_color = difficulties[idx]
             else:
                 diff_name = f"Extra {idx} ?"
                 diff_color = "#888888FF"
 
-            # 4. 拼接 YAML 格式内容
+            # 拼接 YAML 格式内容
             arcproj_content += f"- chartPath: {chart_filename}\n"
             arcproj_content += f"  audioPath: {audio_filename}\n"
             arcproj_content += f"  baseBpm: {bpm}\n"
@@ -138,4 +166,19 @@ def generate_arcproj_files(input_dir="charts"):
 
 
 if __name__ == "__main__":
-    generate_arcproj_files("charts")
+    parser = argparse.ArgumentParser(
+        description="为每个歌曲文件夹生成 project.arcproj。"
+    )
+    parser.add_argument(
+        "-i",
+        "--charts-dir",
+        default="tmp/charts",
+        help="包含关卡子文件夹的目录 (默认: tmp/charts)",
+    )
+    parser.add_argument(
+        "--bpm-yaml",
+        default="in/bpmSpecialCasesList.yaml",
+        help="BPM 覆盖表路径 (默认: in/bpmSpecialCasesList.yaml)",
+    )
+    args = parser.parse_args()
+    generate_arcproj_files(input_dir=args.charts_dir, bpm_yaml=args.bpm_yaml)

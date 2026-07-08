@@ -1,12 +1,10 @@
 import os
 import shutil
 import re
+import argparse
 
 
-def organize_arcaea_files():
-    dl_dir = "dl"
-    charts_dir = "charts"
-
+def organize_arcaea_files(dl_dir="tmp/dl", charts_dir="tmp/charts"):
     if not os.path.exists(dl_dir):
         print(f"错误: 文件夹 '{dl_dir}' 不存在！")
         return
@@ -101,4 +99,14 @@ def organize_arcaea_files():
 
 
 if __name__ == "__main__":
-    organize_arcaea_files()
+    parser = argparse.ArgumentParser(
+        description="将 dl/ 中的 Arcaea 谱面按歌曲整理到 charts/ 下。"
+    )
+    parser.add_argument(
+        "--dl-dir", default="tmp/dl", help="解压后的源目录 (默认: tmp/dl)"
+    )
+    parser.add_argument(
+        "--charts-dir", default="tmp/charts", help="整理输出的目录 (默认: tmp/charts)"
+    )
+    args = parser.parse_args()
+    organize_arcaea_files(dl_dir=args.dl_dir, charts_dir=args.charts_dir)

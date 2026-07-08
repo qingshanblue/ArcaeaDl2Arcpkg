@@ -1,0 +1,36 @@
+# AGENTS.md
+
+将下载好的 Arcaea 谱面文件（`dl.zip`）转换为 ArcCreate 可用的 `.arcpkg` 曲包的流水线仓库。
+
+## 环境与运行方式
+- 使用 **pixi** 管理环境，唯一依赖 `pyyaml`。所有脚本都通过 `pixi run python <脚本>.py` 运行，不要直接用系统 python（可能缺 pyyaml）。
+- `pixi.toml` 未定义 task，仅声明依赖。
+
+## 目录布局
+- `utils/`：所有脚本（`arcaea_charts_sort.py`、`generate_arcproj.py`、`generate_yml.py`、`etr2byd.py`）及 BPM 覆盖表引用。
+- `run.sh`：项目根目录的流水线入口脚本（原 `utils/convert.sh` 移动并重命名）。
+- `in/`：输入区。`in/dl.zip`（下载的谱面压缩包，用户放置）、`in/pack.png`（封面 314x756）、`in/bpmSpecialCasesList.yaml`（手工维护的 BPM 覆盖表）。后两者在 `.gitignore` 中加例外强制提交。
+- `tmp/`：中间产物。`tmp/dl/`（解压结果）、`tmp/charts/`（整理后的谱面）。
+- `out/`：最终产物 `out/qings.zip` 与 `out/qings.arcpkg`。
+- `in/`、`tmp/`、`out/` 均被 `.gitignore` 忽略（`in/` 下 `pack.png` 与 `bpmSpecialCasesList.yaml` 除外）。
+
+## 完整流水线
+- 一键执行：`bash run.sh`（从仓库根目录运行，CWD 决定相对路径；亲自按顺序跑下面各脚本，对产物做存在性判断，可重复运行幂等）。
+- 步骤顺序（不能乱）：
+  1. `pv in/dl.zip | bsdtar -xf - -C tmp`（得 `tmp/dl/`，用 pv 进度条代替逐文件清单刷屏）；若 `in/dl.zip` 缺失会交互询问/报错退出
+  2. `utils/arcaea_charts_sort.py --dl-dir tmp/dl --charts-dir tmp/charts`：按歌曲名分组，重命名整理到 `tmp/charts/<song>/`
+  3. `utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml`：为每个歌曲文件夹生成 `project.arcproj`
+  4. `utils/generate_yml.py -i tmp/charts`：生成 `tmp/charts/qings/pack.yml` 与 `tmp/charts/index.yml`
+  5. 复制 `in/pack.png` 到 `tmp/charts/qings/`
+  6-7. 压缩 `tmp/charts/` 为 `out/qings.zip` 并重命名为 `out/qings.arcpkg`
+
+## 输入/输出约定
+- 提交进仓库的只有：`utils/` 下脚本、`run.sh`、`in/pack.png`、`in/bpmSpecialCasesList.yaml`；生成物 `in/dl.zip`、`tmp/`、`out/` 均忽略。
+- 下载文件命名规则（`arcaea_charts_sort.py` 依赖）：`name_audio_0..4`（ogg 音频）、`name_0..4`（.aff 谱面）、以及无扩展名的基础音频 `name`。整理后重命名为 `<song>/0.aff..4.aff`、`0.ogg..4.ogg`、`base.ogg`（优先用对应难度的 `X.ogg`，否则回退 `base.ogg`）。
+- `generate_yml.py` 默认 pack 名/发布者均为 `qings`（`-n`/`-p` 可调），identifier 为 `publisher.<去空格去下划线后的歌名>`；会跳过 `tmp/charts/qings` 包文件夹，且要求每首歌文件夹里有 `project.arcproj` 才会纳入。
+
+## 易踩的坑
+- `generate_arcproj.py` 的 BPM 从 `.aff` 首行 `timing(0,bpm,beat)` 读取，换算为等效 4/4 BPM = `bpm * (4/beat)`；读取失败默认填 `160`。难度名（Past ?/Present ?/…）和颜色含 `?` 占位符，需后续手工修正。
+- `bpmSpecialCasesList.yaml`（手动维护的覆盖表，键为歌曲文件夹名、值为 BPM）**会被 `generate_arcproj.py` 引用**：命中时整首歌所有难度直接套用该 BPM，跳过 `.aff` 解析；未命中才按原方式生成。键名必须与 `tmp/charts/` 下的歌曲文件夹名**完全一致**，否则静默不生效。
+- `etr2byd.py`（把 `4.aff` 重命名为 `3.aff`，ETR→BYD）在 `convert.sh` 中已被注释禁用；它支持 `--dry-run`/`--force`/`--verbose`，需要时手动运行。
+- 封面 `pack.png` 尺寸为 314x756，复制步骤会跳过已存在的情况。
