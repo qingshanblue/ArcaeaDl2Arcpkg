@@ -21,15 +21,14 @@
   2. `pv in/songs.zip | bsdtar -xf - -C tmp`（得 `tmp/songs/`，**必需输入**，缺失则 `run.sh` 直接报错退出）
   3. `utils/arcaea_charts_sort.py --dl-dir tmp/dl --charts-dir tmp/charts`：按歌曲名分组，重命名整理到 `tmp/charts/<song>/`
   4. `utils/merge_songs.py --songs-dir tmp/songs --charts-dir tmp/charts`：把 `songs/` 合并进 `charts/`——`dl_` 开头的文件夹（如 `dl_name`）去前缀后补到 `charts/name/`；其余（免费歌曲）整文件夹拷贝；合并后每个 `charts/` 文件夹都含曲绘 `1080_base.jpg`
-  5. `utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist`：为每个歌曲文件夹生成 `project.arcproj`
-  6. `utils/generate_yml.py -i tmp/charts`：生成 `tmp/charts/qings/pack.yml` 与 `tmp/charts/index.yml`
-  7. 复制 `in/pack.png` 到 `tmp/charts/qings/`
-  8-9. 压缩 `tmp/charts/` 为 `out/qings.zip` 并重命名为 `out/qings.arcpkg`
+   5. `utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist`：为每个歌曲文件夹生成 `project.arcproj`
+   6. `utils/split_packs.py --charts-dir tmp/charts --songlist tmp/songs/songlist --packlist tmp/songs/packlist --songs-dir tmp/songs --publisher qings`：按 `songlist` 中每首歌的 `set` 字段拆分。先规范化 `set`：去掉末尾 `_append_<数字>` 段（如 `alice_append_1` → `alice`），使追加章节并入基础包。**仅当规范化后的 `set` 在 `packlist` 中有对应条目时各自成独立曲包**，写入 `tmp/packs/qings.<真实名>/`（`<真实名>` 取自 `packlist` 的 `name_localized`，en 否则首个值，空格转下划线、保留中文）。每个曲包自包含：根目录 `index.yml`、内部 `<canonical_set>/pack.yml`（`packName` 用真实名）+ `<canonical_set>/pack.png`（封面来自 `songs/pack/1080_select_<canonical_set>.png`，缺失则回退 `in/pack.png`）、以及各歌曲文件夹。规范化后 `set` 仍不在 `packlist` 中、但歌曲本身在 `songlist` 中（如 `single`）的，直接以该 `set` 值作为真实曲包名各自成独立包（显示名即 `set`，封面用 `songs/pack/1080_select_<set>.png`，缺失则回退 `in/pack.png`）。只有完全不在 `songlist` 中（仅由 bpm 覆盖表命中、查不到 set）的歌曲，才统一收进兜底曲包 `tmp/packs/qings.Extra/`（显示名 `Extra`，封面用 `in/pack.png`，不独立成包）。复用 `generate_yml.py` 的 `generate_pack_files` 生成每个包的 `pack.yml`/`index.yml`。
+   7. 遍历 `tmp/packs/*`，逐个压缩为 `out/qings.<真实名>.zip` 并重命名为 `out/qings.<真实名>.arcpkg`（文件夹名即真实名；不再生成单个 `qings.arcpkg`）。
 
 ## 输入/输出约定
 - 提交进仓库的只有：`utils/` 下脚本、`run.sh`、`in/pack.png`、`in/bpmSpecialCasesList.yaml`；生成物 `in/dl.zip`、`tmp/`、`out/` 均忽略。
 - 下载文件命名规则（`arcaea_charts_sort.py` 依赖）：`name_audio_0..4`（ogg 音频）、`name_0..4`（.aff 谱面）、以及无扩展名的基础音频 `name`。整理后重命名为 `<song>/0.aff..4.aff`、`0.ogg..4.ogg`、`base.ogg`（优先用对应难度的 `X.ogg`，否则回退 `base.ogg`）。
-- `generate_yml.py` 默认 pack 名/发布者均为 `qings`（`-n`/`-p` 可调），identifier 为 `publisher.<去空格去下划线后的歌名>`；会跳过 `tmp/charts/qings` 包文件夹，且要求每首歌文件夹里有 `project.arcproj` 才会纳入。
+- `generate_yml.py` 提供 `generate_pack_files(charts_dir, pack_name, publisher, image_name, pack_display)`：在 `charts_dir` 下创建内部包文件夹 `pack_name/`，写入 `pack.yml`（`packName` 用 `pack_display`，否则回退 `pack_name`）与 `index.yml`，扫描同级含 `project.arcproj` 的歌曲文件夹纳入。被 `split_packs.py` 复用，对每个 `tmp/packs/qings.<真实名>` 调用一次（`pack_name=<set>`，`pack_display` 取自 `packlist`）。
 
 ## 易踩的坑
 - `generate_arcproj.py` 的 BPM 来源已有优先级，**谱面解析方式已删除**：① 手动覆盖表 `in/bpmSpecialCasesList.yaml`（最高优先级，键为歌曲文件夹名、值为 BPM）；② 官方 `tmp/songs/songlist` 的 `bpm_base`。两者都查不到该歌曲时**直接报错并终止程序**（不再有默认 160）。`bpmText` 取 songlist 原始 `bpm` 字符串（如 `"75 - 210"` 保留区间），手动覆盖时则与 `baseBpm` 同值。

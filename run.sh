@@ -87,29 +87,24 @@ step "合并 songs 到 charts" pixi run python utils/merge_songs.py --songs-dir 
 echo "3. 生成 arcproj，才可被 ARCcreate 读取"
 step "生成 project.arcproj" pixi run python utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist
 
-echo "4. 生成 yml，组织所有歌曲为曲包方便使用"
-step "生成 pack.yml 与 index.yml" pixi run python utils/generate_yml.py -i tmp/charts
+echo "4. 按 set 拆分歌曲为多个曲包（追加章节 alice_append_1 等归入基础包 alice；songlist 有但 packlist 无的 set 如 single 按其自身为名成包并用 1080_select_<set>.png；仅完全不在 songlist 的歌进兜底包 qings.Extra；生成 pack.yml/index.yml 并放置封面）"
+step "拆分并生成多曲包" pixi run python utils/split_packs.py --charts-dir tmp/charts --songlist tmp/songs/songlist --packlist tmp/songs/packlist --songs-dir tmp/songs --publisher qings
 
-echo "5. 复制图片 in/pack.png (314x756) 到曲包文件夹"
-if [ -f "./tmp/charts/qings/pack.png" ]; then
-    warn "pack.png 已存在，跳过复制"
-else
-    step "复制 pack.png" cp ./in/pack.png ./tmp/charts/qings/pack.png
-fi
-
-echo "6. 压缩 ./tmp/charts/ 下的所有文件为 zip 并命名为 qings.zip"
+echo "5. 将每个曲包分别压缩为 out/qings.<真实名>.arcpkg（文件夹名即真实名，空格已转下划线）"
 mkdir -p out
-if [ -f "./out/qings.zip" ] || [ -f "./out/qings.arcpkg" ]; then
-    warn "out/qings.zip 或 out/qings.arcpkg 已存在，跳过压缩"
+if [ -d "./tmp/packs" ]; then
+    for d in tmp/packs/*/; do
+        [ -d "$d" ] || continue
+        base="$(basename "$d")"
+        if [ -f "./out/${base}.arcpkg" ]; then
+            warn "out/${base}.arcpkg 已存在，跳过"
+            continue
+        fi
+        step "压缩 ${base} 为 out/${base}.arcpkg" bash -c "cd '$d' && zip -rq - . | pv -s \"\$(du -sb . | awk '{print \$1}')\" > \"\$(pwd)/../../../out/${base}.zip\" && mv \"\$(pwd)/../../../out/${base}.zip\" \"\$(pwd)/../../../out/${base}.arcpkg\""
+    done
 else
-    step "压缩 tmp/charts/ 为 out/qings.zip" bash -c 'cd tmp/charts && zip -rq - . | pv -s "$(du -sb . | awk "{print \$1}")" > ../../out/qings.zip'
+    err "tmp/packs/ 不存在，无法压缩"
+    exit 1
 fi
 
-echo "7. 重命名 out/qings.zip 为 out/qings.arcpkg"
-if [ -f "./out/qings.arcpkg" ]; then
-    warn "out/qings.arcpkg 已存在，跳过重命名"
-else
-    step "重命名为 out/qings.arcpkg" mv out/qings.zip out/qings.arcpkg
-fi
-
-ok "全部转换完成，产物位于 out/qings.arcpkg"
+ok "全部转换完成，产物位于 out/qings.<真实名>.arcpkg（每个官方 set 一个，外加兜底 qings.Extra）"

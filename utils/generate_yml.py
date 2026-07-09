@@ -5,15 +5,20 @@ import yaml
 
 
 def generate_pack_files(
-    charts_dir="tmp/charts", pack_name="qings", publisher="qings", image_name="pack.png"
+    charts_dir="tmp/charts",
+    pack_name="qings",
+    publisher="qings",
+    image_name="pack.png",
+    pack_display=None,
 ):
     """
     扫描 charts 目录下的关卡文件夹，生成 pack.yml 和 index.yml。
 
     :param charts_dir: 包含关卡子文件夹的目录 (默认为 'charts')
-    :param pack_name: 包文件夹名称及包显示名称 (默认为 'qings')
+    :param pack_name: 包文件夹名称（内部子文件夹名，默认为 'qings'）
     :param publisher: 发布者名称，用于构造 identifier (如 'qings')
     :param image_name: 包封面图片文件名 (默认为 'pack.png')
+    :param pack_display: 包显示名称（pack.yml 的 packName），默认等于 pack_name
     """
     charts_path = Path(charts_dir)
     if not charts_path.is_dir():
@@ -63,7 +68,7 @@ def generate_pack_files(
     # 3. 生成 pack.yml 内容
     pack_identifier = f"{publisher}.{pack_name}"
     pack_data = {
-        "packName": pack_name,
+        "packName": pack_display if pack_display is not None else pack_name,
         "imagePath": image_name,
         "levelIdentifiers": level_identifiers,
     }
