@@ -166,8 +166,10 @@ def generate_arcproj_files(
             rating = ratings.get(idx)
             if rating is not None:
                 diff_name = f"{diff_base} {fmt_rating(rating)}"
+                chart_constant = fmt_rating(rating)
             else:
                 diff_name = f"{diff_base} ?"
+                chart_constant = "?"
 
             # 拼接 YAML 格式内容
             arcproj_content += f"- chartPath: {chart_filename}\n"
@@ -181,6 +183,10 @@ def generate_arcproj_files(
             arcproj_content += f"  title: {folder_name}\n"
             arcproj_content += "  composer: N/A\n"
             arcproj_content += f"  difficulty: {diff_name}\n"
+            if re.fullmatch(r"[0-9.]+", chart_constant):
+                arcproj_content += f"  chartConstant: {chart_constant}\n"
+            else:
+                arcproj_content += f"  chartConstant: '{chart_constant}'\n"
             arcproj_content += f"  difficultyColor: '{diff_color}'\n"
             arcproj_content += "  skin:\n"
             arcproj_content += "    side: conflict\n"

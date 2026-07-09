@@ -33,7 +33,7 @@
 
 ## 易踩的坑
 - `generate_arcproj.py` 的 BPM 来源已有优先级，**谱面解析方式已删除**：① 手动覆盖表 `in/bpmSpecialCasesList.yaml`（最高优先级，键为歌曲文件夹名、值为 BPM）；② 官方 `tmp/songs/songlist` 的 `bpm_base`。两者都查不到该歌曲时**直接报错并终止程序**（不再有默认 160）。`bpmText` 取 songlist 原始 `bpm` 字符串（如 `"75 - 210"` 保留区间），手动覆盖时则与 `baseBpm` 同值。
-- 难度 `difficulty` 的定数来自 songlist 中 `difficulties[].rating`（按 `ratingClass` 对应难度序号 0..4），拼成如 `Past 9.6`；songlist 无该难度则保留 `?` 占位符。颜色仍含 `?`，需后续手工修正（如 `#3A6B78FF`）。
+- 难度 `difficulty` 的定数来自 songlist 中 `difficulties[].rating`（按 `ratingClass` 对应难度序号 0..4），拼成如 `Past 9.6`；songlist 无该难度则保留 `?` 占位符。每个难度还会写入 `chartConstant: <同一定数值>`（数值不加引号，`?` 时加单引号）。颜色仍含 `?`，需后续手工修正（如 `#3A6B78FF`）。
 - `bpmSpecialCasesList.yaml`（手动维护的覆盖表，键为歌曲文件夹名、值为 BPM）**会被 `generate_arcproj.py` 引用**：命中时整首歌所有难度直接套用该 BPM，跳过 songlist 解析；未命中才按原方式生成。键名必须与 `tmp/charts/` 下的歌曲文件夹名**完全一致**，否则静默不生效。
 - `merge_songs.py` 依赖 `songs/` 内文件夹名：`dl_` 开头的去前缀补到对应 `charts/name/`，其余整文件夹拷贝；它只处理目录，无后缀的 `songlist` 等文件会被跳过；名为 `tutorial` 的文件夹（新手教程）整目录跳过，不进入 `charts/`。
 - `etr2byd.py`（把 `4.aff` 重命名为 `3.aff`，ETR→BYD）在 `run.sh` 中已被注释禁用；它支持 `--dry-run`/`--force`/`--verbose`，需要时手动运行。
