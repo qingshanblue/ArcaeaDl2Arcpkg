@@ -85,7 +85,7 @@ step "合并 songs 到 charts" pixi run python utils/merge_songs.py --songs-dir 
 # pixi run python utils/etr2byd.py tmp/charts
 
 echo "3. 生成 arcproj，才可被 ARCcreate 读取"
-step "生成 project.arcproj" pixi run python utils/generate_arcproj.py -i tmp/charts --bpm-yaml in/bpmSpecialCasesList.yaml --songlist tmp/songs/songlist
+step "生成 project.arcproj" pixi run python utils/generate_arcproj.py -i tmp/charts --songlist tmp/songs/songlist
 
 echo "4. 按 set 拆分歌曲为多个曲包（追加章节 alice_append_1 等归入基础包 alice；songlist 有但 packlist 无的 set 如 single 按其自身为名成包并用 1080_select_<set>.png；仅完全不在 songlist 的歌进兜底包 qings.Extra；生成 pack.yml/index.yml 并放置封面）"
 step "拆分并生成多曲包" pixi run python utils/split_packs.py --charts-dir tmp/charts --songlist tmp/songs/songlist --packlist tmp/songs/packlist --songs-dir tmp/songs --publisher qings

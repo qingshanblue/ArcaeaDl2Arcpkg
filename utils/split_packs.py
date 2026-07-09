@@ -152,7 +152,7 @@ def split_packs(
         # 判定归属：
         #  1) 规范化后的 set 在 packlist 中 -> 官方包（显示名取 packlist）
         #  2) 歌曲本身在 songlist 但 packlist 无此包（如 single）-> 以 set 自身为名成包
-        #  3) 完全不在 songlist（仅 bpm 覆盖表命中、无 set 可查）-> 兜底包 qings.Extra
+        #  3) 完全不在 songlist（查不到 set）-> 兜底包 qings.Extra
         if canonical in packlist_names:
             display = localized_name(packlist_names.get(canonical)) or canonical
             is_catchall = False

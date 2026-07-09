@@ -1,20 +1,7 @@
 import os
 import re
 import json
-import yaml
 import argparse
-
-
-def load_bpm_special_cases(yaml_path="in/bpmSpecialCasesList.yaml"):
-    """读取手动维护的 BPM 覆盖表，键为歌曲文件夹名、值为 BPM（数值）。优先级最高。"""
-    if not os.path.exists(yaml_path):
-        return {}
-    try:
-        with open(yaml_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        return {str(k).strip(): float(v) for k, v in data.items()}
-    except Exception:
-        return {}
 
 
 def load_songlist(path="tmp/songs/songlist"):
@@ -92,14 +79,12 @@ def yaml_scalar(value):
 
 def generate_arcproj_files(
     input_dir="tmp/charts",
-    bpm_yaml="in/bpmSpecialCasesList.yaml",
     songlist_path="tmp/songs/songlist",
 ):
     if not os.path.exists(input_dir):
         print(f"错误: 文件夹 '{input_dir}' 不存在！请先运行之前的整理脚本。")
         return
 
-    bpm_special_cases = load_bpm_special_cases(bpm_yaml)
     songlist = load_songlist(songlist_path)
 
     # 定义各难度的基名和颜色 (包含了 Beyond 和 Eternal 以防万一)
@@ -153,11 +138,8 @@ def generate_arcproj_files(
                 video_path = "base.mp4"
                 break
 
-        # BPM 取值优先级：手动覆盖表 > songlist(bpm_base) > 否则报错终止
-        if folder_name in bpm_special_cases:
-            folder_bpm = fmt_bpm(bpm_special_cases[folder_name])
-            bpm_text = folder_bpm
-        elif folder_name in songlist:
+        # BPM 取值：仅来自 songlist 的 bpm_base；查不到则报错终止
+        if folder_name in songlist:
             info = songlist[folder_name]
             if info.get("bpm_base") is None:
                 print(f"❌ 错误: 歌曲 '{folder_name}' 在 songlist 中缺少 bpm_base，终止程序。")
@@ -168,7 +150,7 @@ def generate_arcproj_files(
             # 经 yaml_scalar 统一处理：含空格/'-'/歧义字符时加单引号并转义内部单引号
             bpm_text = yaml_scalar(bpm_text)
         else:
-            print(f"❌ 错误: 未获取到歌曲 '{folder_name}' 的 BPM 信息（手动覆盖表与 songlist 均无），终止程序。")
+            print(f"❌ 错误: 未获取到歌曲 '{folder_name}' 的 BPM 信息（songlist 中无该歌曲或缺少 bpm_base），终止程序。")
             raise SystemExit(1)
 
         # 该歌曲的定数映射 ratingClass -> rating
@@ -268,11 +250,6 @@ if __name__ == "__main__":
         help="包含关卡子文件夹的目录 (默认: tmp/charts)",
     )
     parser.add_argument(
-        "--bpm-yaml",
-        default="in/bpmSpecialCasesList.yaml",
-        help="BPM 覆盖表路径 (默认: in/bpmSpecialCasesList.yaml)",
-    )
-    parser.add_argument(
         "--songlist",
         default="tmp/songs/songlist",
         help="官方 songlist 文件路径 (默认: tmp/songs/songlist)",
@@ -280,6 +257,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     generate_arcproj_files(
         input_dir=args.charts_dir,
-        bpm_yaml=args.bpm_yaml,
         songlist_path=args.songlist,
     )
