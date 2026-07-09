@@ -40,6 +40,9 @@ def load_songlist(path="tmp/songs/songlist"):
             "bpm_base": song.get("bpm_base"),
             "bpm": song.get("bpm"),
             "ratings": ratings,
+            "artist": song.get("artist"),
+            "title_localized": song.get("title_localized"),
+            "search_title": song.get("search_title"),
         }
     return result
 
@@ -56,6 +59,35 @@ def fmt_rating(value):
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def resolve_title(title_localized, search_title, folder_name):
+    """标题取值优先级：title_localized(en 否则首个值) > search_title.ja[0] > search_title.ko[0] > 文件夹名。"""
+    if isinstance(title_localized, dict):
+        if "en" in title_localized and title_localized["en"]:
+            return str(title_localized["en"])
+        for v in title_localized.values():
+            if v:
+                return str(v)
+    if isinstance(search_title, dict):
+        for lang in ("ja", "ko"):
+            lst = search_title.get(lang)
+            if isinstance(lst, list) and lst:
+                return str(lst[0])
+    return folder_name
+
+
+def yaml_scalar(value):
+    """含 YAML 歧义字符(或起首为 '-')时加单引号，否则原样返回。单引号内需把 ' 双写转义。"""
+    s = str(value)
+    if (
+        s == ""
+        or s != s.strip()
+        or s[0] in "-"
+        or not re.fullmatch(r"[0-9A-Za-z_. /\-]+", s)
+    ):
+        return "'" + s.replace("'", "''") + "'"
+    return s
 
 
 def generate_arcproj_files(
@@ -133,15 +165,33 @@ def generate_arcproj_files(
             folder_bpm = fmt_bpm(float(info["bpm_base"]))
             raw_bpm = info.get("bpm")
             bpm_text = str(raw_bpm) if raw_bpm is not None else folder_bpm
-            # 含空格或 '-' 时加单引号，避免 YAML 歧义
-            if not re.fullmatch(r"[0-9.]+", bpm_text):
-                bpm_text = f"'{bpm_text}'"
+            # 经 yaml_scalar 统一处理：含空格/'-'/歧义字符时加单引号并转义内部单引号
+            bpm_text = yaml_scalar(bpm_text)
         else:
             print(f"❌ 错误: 未获取到歌曲 '{folder_name}' 的 BPM 信息（手动覆盖表与 songlist 均无），终止程序。")
             raise SystemExit(1)
 
         # 该歌曲的定数映射 ratingClass -> rating
         ratings = songlist.get(folder_name, {}).get("ratings", {})
+
+        # 标题 / 作曲者：来自 songlist（artist 直接套用，title 按优先级解析）
+        song_info = songlist.get(folder_name, {})
+        if song_info:
+            folder_composer = song_info.get("artist") or "N/A"
+            folder_title = resolve_title(
+                song_info.get("title_localized"),
+                song_info.get("search_title"),
+                folder_name,
+            )
+        else:
+            folder_composer = "N/A"
+            folder_title = folder_name
+
+        # 封面临摹优先级：base.jpg > 1080_base.jpg（由 merge_songs 保证至少其一存在）
+        if os.path.exists(os.path.join(folder_path, "base.jpg")):
+            folder_jacket = "base.jpg"
+        else:
+            folder_jacket = "1080_base.jpg"
 
         # 开始构建 .arcproj 文件内容
         first_chart = f"{chart_indices[0]}.aff"
@@ -174,14 +224,14 @@ def generate_arcproj_files(
             # 拼接 YAML 格式内容
             arcproj_content += f"- chartPath: {chart_filename}\n"
             arcproj_content += f"  audioPath: {audio_filename}\n"
-            arcproj_content += "  jacketPath: 1080_base.jpg\n"
+            arcproj_content += f"  jacketPath: {folder_jacket}\n"
             arcproj_content += f"  baseBpm: {folder_bpm}\n"
             arcproj_content += f"  bpmText: {bpm_text}\n"
             arcproj_content += "  syncBaseBpm: true\n"
             if video_path:
                 arcproj_content += "  videoPath: base.mp4\n"
-            arcproj_content += f"  title: {folder_name}\n"
-            arcproj_content += "  composer: N/A\n"
+            arcproj_content += f"  title: {yaml_scalar(folder_title)}\n"
+            arcproj_content += f"  composer: {yaml_scalar(folder_composer)}\n"
             arcproj_content += f"  difficulty: {diff_name}\n"
             if re.fullmatch(r"[0-9.]+", chart_constant):
                 arcproj_content += f"  chartConstant: {chart_constant}\n"

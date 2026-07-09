@@ -24,14 +24,16 @@ def merge_songs(songs_dir="tmp/songs", charts_dir="tmp/charts"):
     dl_count = 0
     free_count = 0
 
+    # 非正式歌曲/特殊文件夹，不拷贝进 charts/
+    skip_folders = {"tutorial", "random", "pack"}
+
     for entry in os.listdir(songs_dir):
         src = os.path.join(songs_dir, entry)
         if not os.path.isdir(src):
             # 跳过无后缀文件（songlist 等）
             continue
 
-        # tutorial 是新手教程，不是正式歌曲，不拷贝进 charts/
-        if entry == "tutorial":
+        if entry in skip_folders:
             continue
 
         if entry.startswith("dl_"):

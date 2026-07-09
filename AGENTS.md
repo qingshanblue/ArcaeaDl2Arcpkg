@@ -35,8 +35,9 @@
 - `generate_arcproj.py` 的 BPM 来源已有优先级，**谱面解析方式已删除**：① 手动覆盖表 `in/bpmSpecialCasesList.yaml`（最高优先级，键为歌曲文件夹名、值为 BPM）；② 官方 `tmp/songs/songlist` 的 `bpm_base`。两者都查不到该歌曲时**直接报错并终止程序**（不再有默认 160）。`bpmText` 取 songlist 原始 `bpm` 字符串（如 `"75 - 210"` 保留区间），手动覆盖时则与 `baseBpm` 同值。
 - 难度 `difficulty` 的定数来自 songlist 中 `difficulties[].rating`（按 `ratingClass` 对应难度序号 0..4），拼成如 `Past 9.6`；songlist 无该难度则保留 `?` 占位符。每个难度还会写入 `chartConstant: <同一定数值>`（数值不加引号，`?` 时加单引号）。颜色仍含 `?`，需后续手工修正（如 `#3A6B78FF`）。
 - `bpmSpecialCasesList.yaml`（手动维护的覆盖表，键为歌曲文件夹名、值为 BPM）**会被 `generate_arcproj.py` 引用**：命中时整首歌所有难度直接套用该 BPM，跳过 songlist 解析；未命中才按原方式生成。键名必须与 `tmp/charts/` 下的歌曲文件夹名**完全一致**，否则静默不生效。
-- `merge_songs.py` 依赖 `songs/` 内文件夹名：`dl_` 开头的去前缀补到对应 `charts/name/`，其余整文件夹拷贝；它只处理目录，无后缀的 `songlist` 等文件会被跳过；名为 `tutorial` 的文件夹（新手教程）整目录跳过，不进入 `charts/`。
+- `merge_songs.py` 依赖 `songs/` 内文件夹名：`dl_` 开头的去前缀补到对应 `charts/name/`，其余整文件夹拷贝；它只处理目录，无后缀的 `songlist` 等文件会被跳过；名为 `tutorial`、`random`、`pack` 的文件夹整目录跳过，不进入 `charts/`。
 - `etr2byd.py`（把 `4.aff` 重命名为 `3.aff`，ETR→BYD）在 `run.sh` 中已被注释禁用；它支持 `--dry-run`/`--force`/`--verbose`，需要时手动运行。
 - `generate_arcproj.py` 会对含视频的歌曲做处理：若文件夹内有 `.mp4`（后缀大小写不敏感），重命名为 `base.mp4` 并在每个难度的 `project.arcproj` 中追加 `videoPath: base.mp4`；无视频则不加该字段。幂等：已是 `base.mp4` 或已存在 `base.mp4` 时不会覆盖。
-- 每个含曲绘的歌曲文件夹在生成 `project.arcproj` 时都会写入 `jacketPath: 1080_base.jpg`（由 `merge_songs.py` 保证该文件存在）。
+- 每个含曲绘的歌曲文件夹在生成 `project.arcproj` 时都会写入 `jacketPath`，封面临摹优先级为 `base.jpg` > `1080_base.jpg`（取存在的那一个）。
+- `title` 与 `composer` 也由 songlist 自动填充（按 `folder_name == id` 匹配）：`composer` 直接取 `artist` 字符串；`title` 优先级为 `title_localized`（优先 `en`，否则首个值）> `search_title.ja[0]` > `search_title.ko[0]` > 回退文件夹名。songlist 无该歌曲时 `title` 用文件夹名、`composer` 为 `N/A`。`title`/`composer` 含 YAML 歧义字符（非 ASCII、冒号、井号、首尾空格、起首 `-` 等）时整体加单引号；值内部的单引号会被转义为 `''`，否则 ArcCreate 的 YAML 解析会报 `did not find expected key`。
 - 封面 `pack.png` 尺寸为 314x756，复制步骤会跳过已存在的情况。
